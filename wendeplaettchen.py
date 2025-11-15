@@ -80,6 +80,32 @@ class WendeplaettchenApp:
         )
         self.canvas.pack(fill=tk.BOTH, expand=True, padx=20, pady=20)
         
+    def prüfe_überlappung(self, x, y, radius, belegte_positionen):
+        """Prüft ob eine Position mit bereits belegten Positionen überlappt"""
+        min_abstand = radius * 2 + 5  # Mindestabstand zwischen Plättchen
+        
+        for pos in belegte_positionen:
+            dx = x - pos['x']
+            dy = y - pos['y']
+            abstand = math.sqrt(dx * dx + dy * dy)
+            
+            if abstand < min_abstand:
+                return True
+        return False
+    
+    def finde_freie_position(self, radius, canvas_breite, canvas_hoehe, belegte_positionen, max_versuche=100):
+        """Findet eine freie Position ohne Überlappung"""
+        for _ in range(max_versuche):
+            x = random.randint(radius + 10, canvas_breite - radius - 10)
+            y = random.randint(radius + 10, canvas_hoehe - radius - 10)
+            
+            if not self.prüfe_überlappung(x, y, radius, belegte_positionen):
+                return x, y
+        
+        # Fallback: Gebe Position zurück, auch wenn sie überlappt
+        return (random.randint(radius + 10, canvas_breite - radius - 10),
+                random.randint(radius + 10, canvas_hoehe - radius - 10))
+    
     def werfen(self):
         # Verhindere mehrfaches Werfen während Animation
         if self.animation_laueft:
@@ -118,11 +144,12 @@ class WendeplaettchenApp:
         # Zufällige Ziel-Positionen und Farben generieren
         anzahl_rot = 0
         anzahl_blau = 0
+        belegte_positionen = []
         
         for i in range(self.anzahl):
-            # Zufällige Zielposition
-            ziel_x = random.randint(radius + 10, canvas_breite - radius - 10)
-            ziel_y = random.randint(radius + 10, canvas_hoehe - radius - 10)
+            # Finde freie Zielposition ohne Überlappung
+            ziel_x, ziel_y = self.finde_freie_position(radius, canvas_breite, canvas_hoehe, belegte_positionen)
+            belegte_positionen.append({'x': ziel_x, 'y': ziel_y})
             
             # Startposition (oben außerhalb des Canvas)
             start_x = random.randint(radius + 10, canvas_breite - radius - 10)
