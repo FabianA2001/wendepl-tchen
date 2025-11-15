@@ -16,26 +16,18 @@ class WendeplaettchenApp:
         self.plaettchen = []
         self.animation_laueft = False
         self.zwanzigerfeld_zellen = []
+        self.gezogenes_plaettchen = None
+        self.drag_offset_x = 0
+        self.drag_offset_y = 0
+        self.hat_bewegt = False
         
-        # Titel
-        titel = tk.Label(
-            root, 
-            text="Wendeplättchen", 
-            font=('Arial', 20, 'bold'),
-            bg='#f0f0f0'
-        )
-        titel.pack(pady=10)
+        # Hauptframe für Zwanzigerfeld und Button
+        haupt_frame = tk.Frame(root, bg='#f0f0f0')
+        haupt_frame.pack(pady=20)
         
         # Zwanzigerfeld für Anzahl-Auswahl
-        zwanzigerfeld_frame = tk.Frame(root, bg='#f0f0f0')
-        zwanzigerfeld_frame.pack(pady=5)
-        
-        tk.Label(
-            zwanzigerfeld_frame,
-            text="Anzahl auswählen (Zwanzigerfeld):",
-            font=('Arial', 11, 'bold'),
-            bg='#f0f0f0'
-        ).pack(pady=3)
+        zwanzigerfeld_frame = tk.Frame(haupt_frame, bg='#f0f0f0')
+        zwanzigerfeld_frame.pack(side=tk.LEFT, padx=10)
         
         # Canvas für Zwanzigerfeld (mit Kreisen)
         self.zwanzigerfeld_canvas = tk.Canvas(
@@ -91,32 +83,23 @@ class WendeplaettchenApp:
         # Initial 5 Felder markieren
         self.aktualisiere_zwanzigerfeld()
         
-        # Steuerungsframe
-        steuerung_frame = tk.Frame(root, bg='#f0f0f0')
-        steuerung_frame.pack(pady=5)
+        # Button-Frame
+        button_frame = tk.Frame(haupt_frame, bg='#f0f0f0')
+        button_frame.pack(side=tk.LEFT, padx=10)
         
         # Werfen-Button
         werfen_button = tk.Button(
-            steuerung_frame,
-            text="Wendeplättchen werfen!",
-            font=('Arial', 14, 'bold'),
+            button_frame,
+            text="Werfen!",
+            font=('Arial', 16, 'bold'),
             bg='#4CAF50',
             fg='white',
-            padx=20,
-            pady=10,
+            padx=30,
+            pady=20,
             command=self.werfen,
             cursor='hand2'
         )
-        werfen_button.pack(side=tk.LEFT, padx=20)
-        
-        # Statistik-Label
-        self.statistik_label = tk.Label(
-            root,
-            text="",
-            font=('Arial', 11),
-            bg='#f0f0f0'
-        )
-        self.statistik_label.pack(pady=5)
+        werfen_button.pack()
         
         # Canvas für Plättchen
         self.canvas = tk.Canvas(
@@ -126,6 +109,145 @@ class WendeplaettchenApp:
             highlightbackground='#ccc'
         )
         self.canvas.pack(fill=tk.BOTH, expand=True, padx=20, pady=(10, 20))
+        
+        # Maus-Events für Plättchen
+        self.canvas.bind('<Button-1>', self.on_canvas_click)
+        self.canvas.bind('<B1-Motion>', self.on_canvas_drag)
+        self.canvas.bind('<ButtonRelease-1>', self.on_canvas_release)
+    
+    def on_canvas_click(self, event):
+        """Behandelt Klicks auf Plättchen"""
+        if self.animation_laueft:
+            return
+        
+        # Finde angeklicktes Plättchen
+        for plaettchen in self.plaettchen:
+            if plaettchen.get('id'):
+                dx = event.x - plaettchen['x']
+                dy = event.y - plaettchen['y']
+                abstand = math.sqrt(dx * dx + dy * dy)
+                
+                if abstand <= plaettchen['radius']:
+                    # Plättchen wurde angeklickt
+                    self.gezogenes_plaettchen = plaettchen
+                    self.drag_offset_x = dx
+                    self.drag_offset_y = dy
+                    self.hat_bewegt = False
+                    return
+    
+    def on_canvas_drag(self, event):
+        """Behandelt das Ziehen von Plättchen"""
+        if self.gezogenes_plaettchen and not self.animation_laueft:
+            self.hat_bewegt = True  # Markiere als bewegt
+            
+            canvas_breite = self.canvas.winfo_width()
+            canvas_hoehe = self.canvas.winfo_height()
+            radius = self.gezogenes_plaettchen['radius']
+            
+            # Neue Position berechnen
+            neue_x = event.x - self.drag_offset_x
+            neue_y = event.y - self.drag_offset_y
+            
+            # Begrenzung auf Canvas
+            neue_x = max(radius, min(neue_x, canvas_breite - radius))
+            neue_y = max(radius, min(neue_y, canvas_hoehe - radius))
+            
+            # Position aktualisieren
+            self.gezogenes_plaettchen['x'] = neue_x
+            self.gezogenes_plaettchen['y'] = neue_y
+            self.gezogenes_plaettchen['ziel_x'] = neue_x
+            self.gezogenes_plaettchen['ziel_y'] = neue_y
+            
+            # Canvas aktualisieren
+            self.canvas.coords(
+                self.gezogenes_plaettchen['id'],
+                neue_x - radius,
+                neue_y - radius,
+                neue_x + radius,
+                neue_y + radius
+            )
+    
+    def on_canvas_release(self, event):
+        """Behandelt das Loslassen der Maus"""
+        # Nur Farbe wechseln, wenn nicht gezogen wurde
+        if self.gezogenes_plaettchen and not self.hat_bewegt:
+            self.animiere_farbwechsel(self.gezogenes_plaettchen)
+        
+        self.gezogenes_plaettchen = None
+        self.hat_bewegt = False
+    
+    def animiere_farbwechsel(self, plaettchen, schritt=0):
+        """Animiert den Farbwechsel eines Plättchens mit Wende-Animation"""
+        if schritt == 0:
+            # Farbe wechseln
+            if plaettchen['farbe'] == '#E53935':
+                neue_farbe = '#1E88E5'
+                plaettchen['farbe'] = neue_farbe
+            else:
+                neue_farbe = '#E53935'
+                plaettchen['farbe'] = neue_farbe
+            
+            # Animations-Daten speichern
+            plaettchen['animation_ziel'] = neue_farbe
+            plaettchen['animation_start_x'] = plaettchen['x']
+            plaettchen['animation_start_y'] = plaettchen['y']
+            plaettchen['original_radius'] = plaettchen['radius']
+        
+        total_schritte = 20
+        
+        # Animation durchführen
+        if schritt < total_schritte:
+            faktor = schritt / float(total_schritte)
+            radius = plaettchen['original_radius']
+            x = plaettchen['animation_start_x']
+            y = plaettchen['animation_start_y']
+            
+            # Drehanimation simulieren durch Breite/Höhe Änderung
+            if schritt < total_schritte / 2:
+                # Erste Hälfte: Plättchen wird schmaler (dreht sich zur Seite)
+                breite_faktor = 1.0 - (schritt / (total_schritte / 2))
+                hoehe_sprung = -10 * (schritt / (total_schritte / 2))  # Springt leicht hoch
+                
+                # Behalte alte Farbe
+                if plaettchen['animation_ziel'] == '#1E88E5':
+                    aktuelle_farbe = '#E53935'
+                else:
+                    aktuelle_farbe = '#1E88E5'
+            else:
+                # Zweite Hälfte: Plättchen wird wieder breiter (mit neuer Farbe)
+                breite_faktor = (schritt - total_schritte / 2) / (total_schritte / 2)
+                hoehe_sprung = -10 * (1.0 - (schritt - total_schritte / 2) / (total_schritte / 2))  # Fällt zurück
+                
+                # Zeige neue Farbe
+                aktuelle_farbe = plaettchen['animation_ziel']
+            
+            # Ellipse zeichnen (simuliert Drehung)
+            breite = max(radius * breite_faktor, 3)  # Mindestbreite von 3 Pixel
+            
+            self.canvas.coords(
+                plaettchen['id'],
+                x - breite,
+                y - radius + hoehe_sprung,
+                x + breite,
+                y + radius + hoehe_sprung
+            )
+            self.canvas.itemconfig(plaettchen['id'], fill=aktuelle_farbe)
+            
+            self.root.after(25, lambda: self.animiere_farbwechsel(plaettchen, schritt + 1))
+        else:
+            # Animation beendet, zurück zur normalen Form
+            radius = plaettchen['original_radius']
+            x = plaettchen['animation_start_x']
+            y = plaettchen['animation_start_y']
+            
+            self.canvas.coords(
+                plaettchen['id'],
+                x - radius,
+                y - radius,
+                x + radius,
+                y + radius
+            )
+            self.canvas.itemconfig(plaettchen['id'], fill=plaettchen['farbe'])
     
     def wähle_anzahl(self, anzahl):
         """Wählt die Anzahl der Plättchen über das Zwanzigerfeld"""
@@ -239,11 +361,6 @@ class WendeplaettchenApp:
                 'geschwindigkeit_x': (ziel_x - start_x) / 30,
                 'verzögerung': i * 2  # Verzögerte Starts für Welleneffekt
             })
-        
-        # Statistik aktualisieren
-        self.statistik_label.config(
-            text=f"Rot: {anzahl_rot} | Blau: {anzahl_blau} | Gesamt: {self.anzahl}"
-        )
         
         # Animation starten
         self.animation_laueft = True
