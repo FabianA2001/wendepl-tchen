@@ -8,45 +8,92 @@ class WendeplaettchenApp:
     def __init__(self, root):
         self.root = root
         self.root.title("Wendeplättchen Werfen")
-        self.root.geometry("800x600")
+        self.root.geometry("900x800")
         self.root.configure(bg='#f0f0f0')
         
         # Anzahl der Plättchen
-        self.anzahl = 10
+        self.anzahl = 5
         self.plaettchen = []
         self.animation_laueft = False
+        self.zwanzigerfeld_zellen = []
         
         # Titel
         titel = tk.Label(
             root, 
             text="Wendeplättchen", 
-            font=('Arial', 24, 'bold'),
+            font=('Arial', 20, 'bold'),
             bg='#f0f0f0'
         )
-        titel.pack(pady=20)
+        titel.pack(pady=10)
+        
+        # Zwanzigerfeld für Anzahl-Auswahl
+        zwanzigerfeld_frame = tk.Frame(root, bg='#f0f0f0')
+        zwanzigerfeld_frame.pack(pady=5)
+        
+        tk.Label(
+            zwanzigerfeld_frame,
+            text="Anzahl auswählen (Zwanzigerfeld):",
+            font=('Arial', 11, 'bold'),
+            bg='#f0f0f0'
+        ).pack(pady=3)
+        
+        # Canvas für Zwanzigerfeld (mit Kreisen)
+        self.zwanzigerfeld_canvas = tk.Canvas(
+            zwanzigerfeld_frame,
+            width=540,
+            height=120,
+            bg='white',
+            highlightthickness=2,
+            highlightbackground='#999'
+        )
+        self.zwanzigerfeld_canvas.pack(padx=10, pady=5)
+        
+        # Zeichne Zwanzigerfeld mit Kreisen (2 Reihen x 10 Spalten, Lücke in der Mitte)
+        kreis_radius = 20
+        start_x = 40
+        start_y = 30
+        abstand_x = 50
+        abstand_y = 60
+        luecke = 20  # Zusätzliche Lücke in der Mitte
+        
+        for reihe in range(2):
+            for spalte in range(10):
+                nummer = reihe * 10 + spalte + 1
+                x = start_x + spalte * abstand_x
+                
+                # Lücke nach der 5. Position hinzufügen
+                if spalte >= 5:
+                    x += luecke
+                
+                y = start_y + reihe * abstand_y
+                
+                # Kreis zeichnen
+                kreis = self.zwanzigerfeld_canvas.create_oval(
+                    x - kreis_radius, y - kreis_radius,
+                    x + kreis_radius, y + kreis_radius,
+                    fill='white',
+                    outline='#666',
+                    width=2,
+                    tags=f'kreis_{nummer}'
+                )
+                
+                self.zwanzigerfeld_zellen.append({
+                    'kreis': kreis,
+                    'nummer': nummer,
+                    'x': x,
+                    'y': y
+                })
+                
+                # Klick-Event
+                self.zwanzigerfeld_canvas.tag_bind(f'kreis_{nummer}', '<Button-1>', 
+                                                   lambda e, n=nummer: self.wähle_anzahl(n))
+        
+        # Initial 5 Felder markieren
+        self.aktualisiere_zwanzigerfeld()
         
         # Steuerungsframe
         steuerung_frame = tk.Frame(root, bg='#f0f0f0')
-        steuerung_frame.pack(pady=10)
-        
-        # Anzahl-Auswahl
-        tk.Label(
-            steuerung_frame, 
-            text="Anzahl:", 
-            font=('Arial', 12),
-            bg='#f0f0f0'
-        ).pack(side=tk.LEFT, padx=5)
-        
-        self.anzahl_var = tk.StringVar(value="10")
-        anzahl_spinbox = ttk.Spinbox(
-            steuerung_frame,
-            from_=1,
-            to=50,
-            textvariable=self.anzahl_var,
-            width=10,
-            font=('Arial', 12)
-        )
-        anzahl_spinbox.pack(side=tk.LEFT, padx=5)
+        steuerung_frame.pack(pady=5)
         
         # Werfen-Button
         werfen_button = tk.Button(
@@ -66,10 +113,10 @@ class WendeplaettchenApp:
         self.statistik_label = tk.Label(
             root,
             text="",
-            font=('Arial', 12),
+            font=('Arial', 11),
             bg='#f0f0f0'
         )
-        self.statistik_label.pack(pady=10)
+        self.statistik_label.pack(pady=5)
         
         # Canvas für Plättchen
         self.canvas = tk.Canvas(
@@ -78,7 +125,22 @@ class WendeplaettchenApp:
             highlightthickness=1,
             highlightbackground='#ccc'
         )
-        self.canvas.pack(fill=tk.BOTH, expand=True, padx=20, pady=20)
+        self.canvas.pack(fill=tk.BOTH, expand=True, padx=20, pady=(10, 20))
+    
+    def wähle_anzahl(self, anzahl):
+        """Wählt die Anzahl der Plättchen über das Zwanzigerfeld"""
+        self.anzahl = anzahl
+        self.aktualisiere_zwanzigerfeld()
+    
+    def aktualisiere_zwanzigerfeld(self):
+        """Aktualisiert die Darstellung des Zwanzigerfelds"""
+        for i, zelle in enumerate(self.zwanzigerfeld_zellen):
+            if i < self.anzahl:
+                # Gefüllter Kreis (grün für ausgewählte)
+                self.zwanzigerfeld_canvas.itemconfig(zelle['kreis'], fill='#4CAF50', outline='#2E7D32')
+            else:
+                # Leerer Kreis (weiß für nicht ausgewählte)
+                self.zwanzigerfeld_canvas.itemconfig(zelle['kreis'], fill='white', outline='#666')
         
     def prüfe_überlappung(self, x, y, radius, belegte_positionen):
         """Prüft ob eine Position mit bereits belegten Positionen überlappt"""
@@ -114,15 +176,6 @@ class WendeplaettchenApp:
         # Canvas leeren
         self.canvas.delete("all")
         self.plaettchen = []
-        
-        try:
-            self.anzahl = int(self.anzahl_var.get())
-            if self.anzahl < 1 or self.anzahl > 50:
-                self.anzahl = 10
-                self.anzahl_var.set("10")
-        except ValueError:
-            self.anzahl = 10
-            self.anzahl_var.set("10")
         
         # Canvas-Größe ermitteln
         canvas_breite = self.canvas.winfo_width()
