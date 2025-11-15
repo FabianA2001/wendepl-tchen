@@ -12,7 +12,7 @@ class WendeplaettchenApp:
         self.root.configure(bg='#f0f0f0')
         
         # Anzahl der Plättchen
-        self.anzahl = 5
+        self.anzahl = 0
         self.plaettchen = []
         self.animation_laueft = False
         self.zwanzigerfeld_zellen = []
@@ -20,6 +20,11 @@ class WendeplaettchenApp:
         self.drag_offset_x = 0
         self.drag_offset_y = 0
         self.hat_bewegt = False
+        
+        # Initial keine Plättchen
+        self.plaettchen_farben = []
+        
+        self.wurde_geworfen = False
         
         # Hauptframe für Zwanzigerfeld und Button
         haupt_frame = tk.Frame(root, bg='#f0f0f0')
@@ -76,9 +81,12 @@ class WendeplaettchenApp:
                     'y': y
                 })
                 
-                # Klick-Event
+                # Klick-Event (nur wenn noch nicht geworfen wurde)
                 self.zwanzigerfeld_canvas.tag_bind(f'kreis_{nummer}', '<Button-1>', 
                                                    lambda e, n=nummer: self.wähle_anzahl(n))
+        
+        # Initial keine Felder markieren
+        self.aktualisiere_zwanzigerfeld()
         
         # Initial 5 Felder markieren
         self.aktualisiere_zwanzigerfeld()
@@ -88,7 +96,7 @@ class WendeplaettchenApp:
         button_frame.pack(side=tk.LEFT, padx=10)
         
         # Werfen-Button
-        werfen_button = tk.Button(
+        self.werfen_button = tk.Button(
             button_frame,
             text="Werfen!",
             font=('Arial', 16, 'bold'),
@@ -99,7 +107,22 @@ class WendeplaettchenApp:
             command=self.werfen,
             cursor='hand2'
         )
-        werfen_button.pack()
+        self.werfen_button.pack(pady=5)
+        
+        # Reset-Button
+        self.reset_button = tk.Button(
+            button_frame,
+            text="Reset",
+            font=('Arial', 14, 'bold'),
+            bg='#FF9800',
+            fg='white',
+            padx=30,
+            pady=15,
+            command=self.reset,
+            cursor='hand2',
+            state=tk.DISABLED  # Initial deaktiviert
+        )
+        self.reset_button.pack(pady=5)
         
         # Canvas für Plättchen
         self.canvas = tk.Canvas(
@@ -248,21 +271,69 @@ class WendeplaettchenApp:
                 y + radius
             )
             self.canvas.itemconfig(plaettchen['id'], fill=plaettchen['farbe'])
+            
+            # Synchronisiere mit Zwanzigertafel
+            self.synchronisiere_farben()
     
     def wähle_anzahl(self, anzahl):
         """Wählt die Anzahl der Plättchen über das Zwanzigerfeld"""
+        # Nur erlaubt wenn noch nicht geworfen wurde
+        if self.wurde_geworfen:
+            return
+            
         self.anzahl = anzahl
+        
+        # Erstelle zufällige Farbverteilung
+        farben = []
+        for _ in range(anzahl):
+            farbe = random.choice(['#1E88E5', '#E53935'])
+            farben.append(farbe)
+        
+        # Sortiere: erst blau, dann rot
+        farben.sort(key=lambda f: 0 if f == '#1E88E5' else 1)
+        self.plaettchen_farben = farben
+        
         self.aktualisiere_zwanzigerfeld()
     
     def aktualisiere_zwanzigerfeld(self):
         """Aktualisiert die Darstellung des Zwanzigerfelds"""
         for i, zelle in enumerate(self.zwanzigerfeld_zellen):
-            if i < self.anzahl:
-                # Gefüllter Kreis (grün für ausgewählte)
-                self.zwanzigerfeld_canvas.itemconfig(zelle['kreis'], fill='#4CAF50', outline='#2E7D32')
+            if i < self.anzahl and i < len(self.plaettchen_farben):
+                if self.wurde_geworfen:
+                    # Nach dem Würfeln: Zeige die echten Farben
+                    farbe = self.plaettchen_farben[i]
+                    outline = '#1565C0' if farbe == '#1E88E5' else '#C62828'
+                    self.zwanzigerfeld_canvas.itemconfig(zelle['kreis'], fill=farbe, outline=outline)
+                else:
+                    # Vor dem Würfeln: Zeige grau
+                    self.zwanzigerfeld_canvas.itemconfig(zelle['kreis'], fill='#9E9E9E', outline='#666')
+            elif i < self.anzahl:
+                # Fallback: grau vor dem Würfeln, grün danach
+                if self.wurde_geworfen:
+                    self.zwanzigerfeld_canvas.itemconfig(zelle['kreis'], fill='#4CAF50', outline='#2E7D32')
+                else:
+                    self.zwanzigerfeld_canvas.itemconfig(zelle['kreis'], fill='#9E9E9E', outline='#666')
             else:
                 # Leerer Kreis (weiß für nicht ausgewählte)
                 self.zwanzigerfeld_canvas.itemconfig(zelle['kreis'], fill='white', outline='#666')
+    
+    def synchronisiere_farben(self):
+        """Synchronisiert Farben zwischen Plättchen und Zwanzigertafel"""
+        # Zähle Farben in Plättchen
+        blau_count = 0
+        rot_count = 0
+        
+        for plaettchen in self.plaettchen:
+            if plaettchen.get('farbe') == '#1E88E5':
+                blau_count += 1
+            elif plaettchen.get('farbe') == '#E53935':
+                rot_count += 1
+        
+        # Erstelle sortiertes Farben-Array (erst blau, dann rot)
+        self.plaettchen_farben = ['#1E88E5'] * blau_count + ['#E53935'] * rot_count
+        
+        # Aktualisiere Zwanzigertafel
+        self.aktualisiere_zwanzigerfeld()
         
     def prüfe_überlappung(self, x, y, radius, belegte_positionen):
         """Prüft ob eine Position mit bereits belegten Positionen überlappt"""
@@ -294,6 +365,13 @@ class WendeplaettchenApp:
         # Verhindere mehrfaches Werfen während Animation
         if self.animation_laueft:
             return
+        
+        # Markiere als geworfen
+        self.wurde_geworfen = True
+        
+        # Deaktiviere Werfen-Button und aktiviere Reset-Button
+        self.werfen_button.config(state=tk.DISABLED)
+        self.reset_button.config(state=tk.NORMAL)
             
         # Canvas leeren
         self.canvas.delete("all")
@@ -330,11 +408,15 @@ class WendeplaettchenApp:
             start_x = random.randint(radius + 10, canvas_breite - radius - 10)
             start_y = -radius - 20
             
-            # Zufällige Farbe (rot oder blau)
-            ist_rot = random.choice([True, False])
-            farbe = '#E53935' if ist_rot else '#1E88E5'
+            # Farbe aus Array nehmen (falls vorhanden) oder zufällig
+            if i < len(self.plaettchen_farben):
+                farbe = self.plaettchen_farben[i]
+            else:
+                ist_rot = random.choice([True, False])
+                farbe = '#E53935' if ist_rot else '#1E88E5'
+                self.plaettchen_farben.append(farbe)
             
-            if ist_rot:
+            if farbe == '#E53935':
                 anzahl_rot += 1
             else:
                 anzahl_blau += 1
@@ -365,6 +447,9 @@ class WendeplaettchenApp:
         # Animation starten
         self.animation_laueft = True
         self.animiere()
+        
+        # Aktualisiere Zwanzigertafel nach dem Werfen
+        self.synchronisiere_farben()
     
     def animiere(self):
         alle_fertig = True
@@ -416,6 +501,32 @@ class WendeplaettchenApp:
             self.root.after(16, self.animiere)  # ~60 FPS
         else:
             self.animation_laueft = False
+    
+    def reset(self):
+        """Setzt das Spiel zurück"""
+        # Zurücksetzen der Variablen
+        self.wurde_geworfen = False
+        self.animation_laueft = False
+        
+        # Canvas leeren
+        self.canvas.delete("all")
+        self.plaettchen = []
+        
+        # Buttons zurücksetzen
+        self.werfen_button.config(state=tk.NORMAL)
+        self.reset_button.config(state=tk.DISABLED)
+        
+        # Erstelle neue zufällige Farbverteilung für die aktuelle Anzahl
+        farben = []
+        for _ in range(self.anzahl):
+            farbe = random.choice(['#1E88E5', '#E53935'])
+            farben.append(farbe)
+        # Sortiere: erst blau, dann rot
+        farben.sort(key=lambda f: 0 if f == '#1E88E5' else 1)
+        self.plaettchen_farben = farben
+        
+        # Aktualisiere Zwanzigerfeld (zeigt wieder grau)
+        self.aktualisiere_zwanzigerfeld()
 
 
 def main():
