@@ -15,6 +15,19 @@ class GeldGUI:
         self.canvas = Canvas(root, bg="lightgray", width=1400, height=800)
         self.canvas.pack(fill=tk.BOTH, expand=True)
 
+        # Reset Button
+        reset_btn = tk.Button(
+            root,
+            text="Reset",
+            command=self.reset_canvas,
+            font=("Arial", 12, "bold"),
+            bg="gray",
+            fg="white",
+            padx=20,
+            pady=10,
+        )
+        self.canvas.create_window(1320, 760, window=reset_btn)
+
         # Bilder speichern
         self.images = {}
         self.image_refs = []  # Verhindert Garbage Collection
@@ -97,6 +110,14 @@ class GeldGUI:
                 self.images[name] = ImageTk.PhotoImage(img)
                 self.image_refs.append(self.images[name])
 
+        # Lade Euro-Symbol PNG
+        euro_symbol_path = os.path.join(geld_dir, "euro_symbol.png")
+        if os.path.exists(euro_symbol_path):
+            euro_img = Image.open(euro_symbol_path)
+            euro_img = euro_img.resize((60, 60), Image.Resampling.LANCZOS)
+            self.images["euro_symbol"] = ImageTk.PhotoImage(euro_img)
+            self.image_refs.append(self.images["euro_symbol"])
+
     def create_layout(self):
         """Erstellt das Layout mit Münzen links, Scheinen rechts und Mitte frei"""
 
@@ -127,6 +148,36 @@ class GeldGUI:
         # Mittlerer Bereich - Markierung
         self.canvas.create_rectangle(
             200, 50, 1200, 750, outline="darkgray", width=2, dash=(5, 5)
+        )
+
+        # Tabelle mit Kreuz in der Mitte
+        # Berechne die Mitte des mittleren Bereichs
+        center_x = 700  # Mitte zwischen 200 und 1200
+        center_y = 400  # Mitte zwischen 50 und 750
+
+        # Rote vertikale Linie
+        self.canvas.create_line(center_x, 250, center_x, 700, fill="black", width=3)
+
+        x = -100
+        # Rote horizontale Linie
+        self.canvas.create_line(
+            300, center_y + x, 1100, center_y + x, fill="red", width=3
+        )
+
+        x = 80
+        # Beschriftungen
+        # Euro-Symbol als Bild links oben über der linken Hälfte
+        if "euro_symbol" in self.images:
+            self.canvas.create_image(450, 180 + x, image=self.images["euro_symbol"])
+        else:
+            # Fallback: Text falls Bild nicht vorhanden
+            self.canvas.create_text(
+                450, 180 + x, text="€", font=("Arial", 80, "bold"), fill="black"
+            )
+
+        # "ct" rechts oben über der rechten Hälfte
+        self.canvas.create_text(
+            950, 180 + x, text="ct", font=("Arial", 200, "bold"), fill="black"
         )
 
         # Bind Events
@@ -199,6 +250,12 @@ class GeldGUI:
 
         # Reset drag data
         self.drag_data = {"item": None, "x": 0, "y": 0, "is_copy": False}
+
+    def reset_canvas(self):
+        """Löscht alle platzierten Geldobjekte aus dem mittleren Bereich"""
+        for item in self.dropped_items:
+            self.canvas.delete(item)
+        self.dropped_items = []
 
 
 def main():
