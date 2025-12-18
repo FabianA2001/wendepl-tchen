@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="de">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wendeplättchen</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: #0b3816;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            padding: 30px;
+            max-width: 1200px;
+            width: 100%;
+            min-height: calc(100vh - 40px);
+        }
+
+        .control-section {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .zwanzigerfeld {
+            background: white;
+            border: 2px solid #999;
+            border-radius: 10px;
+            padding: 20px;
+            display: inline-block;
+        }
+
+        .zwanzigerfeld-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 50px) 20px repeat(5, 50px);
+            grid-template-rows: repeat(2, 60px);
+            gap: 0;
+        }
+
+        .zwanzigerfeld-kreis {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            border: 2px solid #666;
+            background: white;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: auto;
+        }
+
+        .zwanzigerfeld-kreis.blau {
+            background: #1E88E5;
+        }
+
+        .zwanzigerfeld-kreis.rot {
+            background: #E53935;
+        }
+
+        .zwanzigerfeld-kreis:hover {
+            transform: scale(1.1);
+        }
+
+        .zwanzigerfeld-kreis.temp-selected {
+            transform: scale(1.15);
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
+        }
+
+        .zwanzigerfeld-gap {
+            grid-column: 6;
+        }
+
+        .zwanzigerfeld-kreis.flipping {
+            animation: flip 0.5s ease-in-out;
+        }
+
+        @keyframes flip {
+            0% {
+                transform: rotateY(0deg) translateY(0);
+            }
+
+            25% {
+                transform: rotateY(90deg) translateY(-10px);
+            }
+
+            75% {
+                transform: rotateY(270deg) translateY(-10px);
+            }
+
+            100% {
+                transform: rotateY(360deg) translateY(0);
+            }
+        }
+
+        .reset-button {
+            position: fixed;
+            bottom: 30px;
+            left: 30px;
+            padding: 12px 24px;
+            font-size: 16px;
+            font-weight: bold;
+            background: rgba(255, 255, 255, 0.95);
+            color: #333;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50px;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            z-index: 1000;
+        }
+
+        .reset-button:hover {
+            background: white;
+            border-color: white;
+            transform: translateY(-3px);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .reset-button:active {
+            transform: translateY(-1px);
+        }
+    </style>
+</head>
+
+<body>
+    <button class="reset-button" id="reset-btn">Reset</button>
+    <div class="container">
+        <div class="control-section">
+            <div class="zwanzigerfeld">
+                <div class="zwanzigerfeld-grid" id="zwanzigerfeld">
+                    <!-- Erste Reihe -->
+                    <div class="zwanzigerfeld-kreis" data-nummer="1"></div>
+                    <div class="zwanzigerfeld-kreis" data-nummer="2"></div>
+                    <div class="zwanzigerfeld-kreis" data-nummer="3"></div>
+                    <div class="zwanzigerfeld-kreis" data-nummer="4"></div>
+                    <div class="zwanzigerfeld-kreis" data-nummer="5"></div>
+                    <div class="zwanzigerfeld-gap"></div>
+                    <div class="zwanzigerfeld-kreis" data-nummer="6"></div>
+                    <div class="zwanzigerfeld-kreis" data-nummer="7"></div>
+                    <div class="zwanzigerfeld-kreis" data-nummer="8"></div>
+                    <div class="zwanzigerfeld-kreis" data-nummer="9"></div>
+                    <div class="zwanzigerfeld-kreis" data-nummer="10"></div>
+
+                    <!-- Zweite Reihe -->
+                    <div class="zwanzigerfeld-kreis" data-nummer="11"></div>
+                    <div class="zwanzigerfeld-kreis" data-nummer="12"></div>
+                    <div class="zwanzigerfeld-kreis" data-nummer="13"></div>
+                    <div class="zwanzigerfeld-kreis" data-nummer="14"></div>
+                    <div class="zwanzigerfeld-kreis" data-nummer="15"></div>
+                    <div class="zwanzigerfeld-gap"></div>
+                    <div class="zwanzigerfeld-kreis" data-nummer="16"></div>
+                    <div class="zwanzigerfeld-kreis" data-nummer="17"></div>
+                    <div class="zwanzigerfeld-kreis" data-nummer="18"></div>
+                    <div class="zwanzigerfeld-kreis" data-nummer="19"></div>
+                    <div class="zwanzigerfeld-kreis" data-nummer="20"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let isMouseDown = false;
+        let selectedKreise = new Set();
+
+        // Funktion zum Wechseln der Farbe
+        function toggleKreisColor(kreis) {
+            // Flip Animation
+            kreis.classList.add('flipping');
+
+            setTimeout(() => {
+                // Zyklus durch die Farben: weiß -> blau -> rot -> weiß
+                if (kreis.classList.contains('blau')) {
+                    // blau -> rot
+                    kreis.classList.remove('blau');
+                    kreis.classList.add('rot');
+                } else if (kreis.classList.contains('rot')) {
+                    // rot -> weiß
+                    kreis.classList.remove('rot');
+                } else {
+                    // weiß -> blau
+                    kreis.classList.add('blau');
+                }
+
+                kreis.classList.remove('flipping');
+            }, 250);
+        }
+
+        // Zwanzigerfeld Kreise Event Listener
+        document.querySelectorAll('.zwanzigerfeld-kreis').forEach(kreis => {
+            // MouseDown - Start des Drag
+            kreis.addEventListener('mousedown', function (e) {
+                e.preventDefault();
+                isMouseDown = true;
+                selectedKreise.clear();
+
+                // Markiere diesen Kreis
+                this.classList.add('temp-selected');
+                selectedKreise.add(this);
+            });
+
+            // MouseEnter - Beim Drüberfahren mit gedrückter Maus
+            kreis.addEventListener('mouseenter', function () {
+                if (isMouseDown && !selectedKreise.has(this)) {
+                    this.classList.add('temp-selected');
+                    selectedKreise.add(this);
+                }
+            });
+        });
+
+        // Globale MouseUp - Ende des Drag
+        document.addEventListener('mouseup', function () {
+            if (isMouseDown) {
+                // Wende Farbwechsel auf alle ausgewählten Kreise an
+                selectedKreise.forEach(kreis => {
+                    kreis.classList.remove('temp-selected');
+                    toggleKreisColor(kreis);
+                });
+
+                selectedKreise.clear();
+                isMouseDown = false;
+            }
+        });
+
+        // Verhindere Text-Selektion beim Drag
+        document.addEventListener('selectstart', function (e) {
+            if (isMouseDown) {
+                e.preventDefault();
+            }
+        });
+
+        // Reset Button
+        document.getElementById('reset-btn').addEventListener('click', function () {
+            document.querySelectorAll('.zwanzigerfeld-kreis').forEach(kreis => {
+                kreis.classList.remove('blau', 'rot', 'temp-selected');
+            });
+        });
+    </script>
+</body>
+
+</html>
